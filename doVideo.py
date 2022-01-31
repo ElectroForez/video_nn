@@ -26,5 +26,5 @@ def doVideo(pathToSrc, filename=None, fps=30, extension='png', codec='DIVX'):
     # new_audioclip = CompositeAudioClip([audioclip])
     # out.audio = new_audioclip
     # videoclip.write_videofile("new_filename.mp4")
-print(sys.argv)
+#print(sys.argv)
 doVideo(*sys.argv[1:], extension='jpg')
