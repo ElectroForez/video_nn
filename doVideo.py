@@ -2,7 +2,7 @@ import cv2
 import glob
 import os
 import sys
-from moviepy.editor import *
+from moviepy import editor as mp
 def doVideo(pathToSrc, filename=None, fps=30, extension='png', codec='DIVX'):
     frames = glob.glob(pathToSrc + '/*.' + extension)
     # print(src)
@@ -21,10 +21,15 @@ def doVideo(pathToSrc, filename=None, fps=30, extension='png', codec='DIVX'):
         img = cv2.imread(frame)
         out.write(img)
     print(filename)
-    audioclip = AudioFileClip(pathToSrc + "/audio.mp3")
+    # audioclip = AudioFileClip(pathToSrc + "/audio.mp3")
     out.release()
     # new_audioclip = CompositeAudioClip([audioclip])
     # out.audio = new_audioclip
     # videoclip.write_videofile("new_filename.mp4")
+    audio = mp.AudioFileClip(pathToSrc +"/audio.mp3")
+    video1 = mp.VideoFileClip(filename)
+    final = video1.set_audio(audio)
+    final.write_videofile(filename, codec='mpeg4', audio_codec='libvorbis')
+#print(sys.argv)
 print(sys.argv)
 doVideo(*sys.argv[1:], extension='jpg')
