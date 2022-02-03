@@ -10,10 +10,13 @@ def video_to_frames(path, toPath=None):
      if not os.path.exists(path):
        print(path + " not exists")
        return
+     elif not os.path.isdir(path):
+         print(path + " is not directory")
+         return
      else:
         filename = path.split('/')[-1]
         if not toPath:
-              toPath = filename + "_frames"
+              toPath = filename + "_fragments"
         if not os.path.exists(toPath):
               os.mkdir(toPath)
         if os.listdir(toPath):
@@ -37,7 +40,6 @@ def video_to_frames(path, toPath=None):
          infoFile.write(str(int(frames)))
      try:
         audioclip = AudioFileClip(path)
-        print(audioclip.duration)
         audioclip.write_audiofile(toPath + '/audio.mp3')
      except:
          print('video without audio')
