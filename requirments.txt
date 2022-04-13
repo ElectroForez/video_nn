@@ -1,2 +1,2 @@
-opencv-python
-moviepy
+opencv-python==4.5.5.62
+moviepy==1.0.3
