@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import os
 import sys
@@ -87,7 +89,9 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
 @print_timecost
 def use_realsr(input_path, output_path, *args_realsr, realsr_path='./realsr-ncnn-vulkan/realsr-ncnn-vulkan'):
     """up-scaling frames"""
-    finish = subprocess.run([realsr_path, '-i', input_path, '-o', output_path, *args_realsr])
+    # finish = subprocess.run([realsr_path, '-i', input_path, '-o', output_path, *args_realsr])
+    finish = subprocess.run(['cp', input_path, output_path])
+    time.sleep(3)
     return finish.returncode
 
 
