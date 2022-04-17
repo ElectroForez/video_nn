@@ -5,6 +5,7 @@ import subprocess
 import glob
 from datetime import datetime
 from moviepy.editor import AudioFileClip
+import argparse
 
 
 def print_timecost(func):
@@ -76,6 +77,10 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
         print('Error on adding audio')
         return -1
 
+    # chown for convenient work with Docker
+    if os.environ.get('IS_DOCKER'):
+        for path in [fragments_path, upd_fragments_path, upd_videofile_WOA, upd_videofile]:
+            os.system(f'chown -R 1000:1000 {path}')
     return 0
 
 
@@ -188,4 +193,15 @@ def add_audio(videofile, audio_path, new_name=None):
 
 
 if __name__ == '__main__':
-    improve_video(*sys.argv[1:], func_upscale=use_realsr)
+    video_dir = '/mounted/' if os.environ.get('IS_DOCKER') else ''
+    parser = argparse.ArgumentParser(prog='Improve video', description='Use realsr for processing video frame by frame')
+    parser.add_argument('-i', '--input', type=str, help='Input path for video', required=True)
+    parser.add_argument('-o', '--output', type=str, default='untitled.avi',
+                        help='Output path for video. Temporary files will be stored in the same path.')
+    parser.add_argument('-r', '--realsr', metavar='REALSR ARGS', default='', type=str)
+    args = parser.parse_args()
+
+    input_video = video_dir + args.input
+    output_video = video_dir + args.output
+    args_realsr = args.realsr
+    improve_video(input_video, output_video, *args_realsr.split(), func_upscale=use_realsr)
