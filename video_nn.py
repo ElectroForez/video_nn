@@ -1,8 +1,7 @@
 import time
-
+import shutil
 import cv2
 import os
-import sys
 import subprocess
 import glob
 from datetime import datetime
@@ -33,13 +32,15 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
         print(f'{videofile} it is a directory')
         return -1
     filename = videofile.split('/')[-1]  # take filename
-    if upd_videofile.split('/')[-1].count('.') == 0:  # check path that it's directory
+    if os.path.isdir(upd_videofile):  # check path that it's directory
         if not os.path.exists(upd_videofile):
             os.mkdir(upd_videofile)
         directory = upd_videofile
         upd_videofile += 'untitled.avi'  # it's path for a future file
     else:
-        directory = videofile.split(filename)[0]
+        directory = upd_videofile[:upd_videofile.rfind('/')]
+    if not os.path.exists(directory):
+        os.mkdir(directory)
     if not directory.endswith('/'):
         directory += '/'
 
@@ -74,10 +75,14 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
         print('Error on glue frames')
         return -1
 
-    return_code_audio = add_audio(upd_videofile_WOA, fragments_path + 'audio.mp3', upd_videofile)
-    if return_code_audio != 0:
-        print('Error on adding audio')
-        return -1
+    if not os.path.exists(fragments_path + 'audio.mp3'):
+        print('Audio not found')
+        os.rename(upd_videofile_WOA, upd_videofile)
+    else:
+        return_code_audio = add_audio(upd_videofile_WOA, fragments_path + 'audio.mp3', upd_videofile)
+        if return_code_audio != 0:
+            print('Error on adding audio')
+            return -1
 
     # chown for convenient work with Docker
     if os.environ.get('IS_DOCKER'):
@@ -120,7 +125,9 @@ def video_to_fragments(video_path, output_path=None):
     if not os.path.exists(output_path):
         os.mkdir(output_path)
     if os.listdir(output_path):
-        print(f'WARNING!!! Path for fragments {output_path} is not empty. Files with the same name will be overwritten')
+        print(f'WARNING!!! Path for fragments {output_path} is not empty. This folder will be deleted')
+        shutil.rmtree(output_path)
+        os.mkdir(output_path)
 
     videoCapture = cv2.VideoCapture()
     videoCapture.open(video_path)
@@ -133,23 +140,26 @@ def video_to_fragments(video_path, output_path=None):
         ret, frame = videoCapture.read()
         if ret:
             count_frames += 1
-            cv2.imwrite("%s/%d.png" % (output_path, i), frame)
+            cv2.imwrite("%s/%d.jpg" % (output_path, i), frame)
     if count_frames != frames:
         frames = count_frames
+
+    # catching audio
+    audioclip = AudioFileClip(video_path)
+    if audioclip.reader.infos['audio_found']:
+        audioclip.write_audiofile(output_path + 'audio.mp3')
+        with_audio = True
+    else:
+        print('Video without audio')
+        with_audio = False
+    audioclip.close()
 
     # create a txt file with additional info for processing by other programs
     with open(output_path + 'info.txt', 'w') as infoFile:
         infoFile.write(str(int(fps)) + '\n')  # fps
         infoFile.write(filename + '\n')  # filename
-        infoFile.write(str(int(frames)))  # frames
-
-    # catching audio
-    try:
-        audioclip = AudioFileClip(video_path)
-        audioclip.write_audiofile(output_path + 'audio.mp3')
-        audioclip.close()
-    except IndexError:
-        print('video without audio')
+        infoFile.write(str(int(frames)) + '\n')  # frames
+        infoFile.write(str(int(with_audio)))  # with(out) audio
 
     return 0
 
@@ -197,15 +207,18 @@ def add_audio(videofile, audio_path, new_name=None):
 
 
 if __name__ == '__main__':
-    video_dir = '/mounted/' if os.environ.get('IS_DOCKER') else ''
-    parser = argparse.ArgumentParser(prog='Improve video', description='Use realsr for processing video frame by frame')
-    parser.add_argument('-i', '--input', type=str, help='Input path for video', required=True)
-    parser.add_argument('-o', '--output', type=str, default='untitled.avi',
-                        help='Output path for video. Temporary files will be stored in the same path.')
-    parser.add_argument('-r', '--realsr', metavar='REALSR ARGS', default='', type=str)
-    args = parser.parse_args()
-
-    input_video = video_dir + args.input
-    output_video = video_dir + args.output
-    args_realsr = args.realsr
+    # video_dir = '/mounted/' if os.environ.get('IS_DOCKER') else ''
+    # parser = argparse.ArgumentParser(prog='Improve video', description='Use realsr for processing video frame by frame')
+    # parser.add_argument('-i', '--input', type=str, help='Input path for video', required=True)
+    # parser.add_argument('-o', '--output', type=str, default='untitled.avi',
+    #                     help='Output path for video. Temporary files will be stored in the same path.')
+    # parser.add_argument('-r', '--realsr', metavar='REALSR ARGS', default='', type=str)
+    # args = parser.parse_args()
+    #
+    # input_video = video_dir + args.input
+    # output_video = video_dir + args.output
+    # args_realsr = args.realsr
+    args_realsr = ''
+    input_video = "videos/NewYear.mp4"
+    output_video = "videos/NY/UpdNewYear.mp4"
     improve_video(input_video, output_video, *args_realsr.split(), func_upscale=use_realsr)
