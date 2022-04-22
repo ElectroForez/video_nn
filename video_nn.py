@@ -25,6 +25,7 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
     improve quality of video using frame-by-frame processing.
     func_upscale processes frames
     """
+    func_upscale = print_timecost(func_upscale)
     if not os.path.exists(videofile):
         print(f'File {videofile} not found')
         return -1
@@ -32,13 +33,17 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
         print(f'{videofile} it is a directory')
         return -1
     filename = videofile.split('/')[-1]  # take filename
-    if os.path.isdir(upd_videofile):  # check path that it's directory
+    if upd_videofile.split('/')[-1].count('.') == 0:  # check path that it's directory
         if not os.path.exists(upd_videofile):
             os.mkdir(upd_videofile)
         directory = upd_videofile
         upd_videofile += 'untitled.avi'  # it's path for a future file
     else:
-        directory = upd_videofile[:upd_videofile.rfind('/')]
+        r_slash_ind = upd_videofile.rfind('/')
+        if r_slash_ind == -1:
+            directory = '.'
+        else:
+            directory = upd_videofile[:r_slash_ind]
     if not os.path.exists(directory):
         os.mkdir(directory)
     if not directory.endswith('/'):
@@ -63,7 +68,7 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
         return -1
 
     # copy info and audio of video to path with updated fragments
-    subprocess.run(['cp', fragments_path + 'info.txt', fragments_path + 'audio.mp3', upd_fragments_path])
+    subprocess.run(['cp', fragments_path + 'info.txt', fragments_path + 'audio.mp3', upd_fragments_path], capture_output=True)
 
     return_code_upscale = func_upscale(fragments_path, upd_fragments_path, *args_realsr)
     if return_code_upscale != 0:
@@ -87,7 +92,7 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
     # chown for convenient work with Docker
     if os.environ.get('IS_DOCKER'):
         for path in [fragments_path, upd_fragments_path, upd_videofile_WOA, upd_videofile]:
-            os.system(f'chown -R 1000:1000 {path}')
+            subprocess.run(f'chown -R 1000:1000 {path}'.split(), capture_output=True)
     return 0
 
 
@@ -140,7 +145,7 @@ def video_to_fragments(video_path, output_path=None):
         ret, frame = videoCapture.read()
         if ret:
             count_frames += 1
-            cv2.imwrite("%s/%d.jpg" % (output_path, i), frame)
+            cv2.imwrite("%s/%d.png" % (output_path, i), frame)
     if count_frames != frames:
         frames = count_frames
 
@@ -166,14 +171,16 @@ def video_to_fragments(video_path, output_path=None):
 
 @print_timecost
 def glue_frames(src_path, videofile='untitled.avi', codec='h264', fps=30, *args_ffmpeg, photo_extenstion='png'):
-    frames = glob.glob(src_path + '/*.' + photo_extenstion)
+    if not src_path.endswith('/'):
+        src_path += '/'
+    frames = glob.glob(src_path + '*.' + photo_extenstion)
     if len(frames) == 0:
         print(f'Frames with extension {photo_extenstion} not found')
         return
     filename = 'untitled.avi'
 
-    if os.path.exists(src_path + '/info.txt'):
-        with open(src_path + '/info.txt', 'r') as infoFile:
+    if os.path.exists(src_path + 'info.txt'):
+        with open(src_path + 'info.txt', 'r') as infoFile:
             try:
                 fps = int(infoFile.readline())
                 filename = 'UpdWOA_' + infoFile.readline().strip()  # Updated without audio
@@ -184,12 +191,13 @@ def glue_frames(src_path, videofile='untitled.avi', codec='h264', fps=30, *args_
                 print("Bad info.txt")
     else:
         print("WARNING!!! info.txt not exists. It's true path?")
+        fps = 30
 
     if videofile.split('/')[-1].count('.') == 0:
         videofile += '/' + filename
 
     finish = subprocess.run(
-        ['ffmpeg', '-start_number', '1', '-r', str(fps), '-i', src_path + '/%d.png', '-vcodec', codec, '-y',
+        ['ffmpeg', '-start_number', '1', '-r', str(fps), '-i', src_path + '%d.png', '-vcodec', codec, '-y',
          *args_ffmpeg, videofile])
 
     return finish.returncode
@@ -207,18 +215,16 @@ def add_audio(videofile, audio_path, new_name=None):
 
 
 if __name__ == '__main__':
-    # video_dir = '/mounted/' if os.environ.get('IS_DOCKER') else ''
-    # parser = argparse.ArgumentParser(prog='Improve video', description='Use realsr for processing video frame by frame')
-    # parser.add_argument('-i', '--input', type=str, help='Input path for video', required=True)
-    # parser.add_argument('-o', '--output', type=str, default='untitled.avi',
-    #                     help='Output path for video. Temporary files will be stored in the same path.')
-    # parser.add_argument('-r', '--realsr', metavar='REALSR ARGS', default='', type=str)
-    # args = parser.parse_args()
-    #
-    # input_video = video_dir + args.input
-    # output_video = video_dir + args.output
-    # args_realsr = args.realsr
+    video_dir = '/mounted/' if os.environ.get('IS_DOCKER') else ''
+    parser = argparse.ArgumentParser(prog='Improve video', description='Use realsr for processing video frame by frame')
+    parser.add_argument('-i', '--input', type=str, help='Input path for video', required=True)
+    parser.add_argument('-o', '--output', type=str, default='untitled.avi',
+                        help='Output path for video. Temporary files will be stored in the same path.')
+    parser.add_argument('-r', '--realsr', metavar='REALSR ARGS', default='', type=str)
+    args = parser.parse_args()
+
+    input_video = video_dir + args.input
+    output_video = video_dir + args.output
+    args_realsr = args.realsr
     args_realsr = ''
-    input_video = "videos/NewYear.mp4"
-    output_video = "videos/NY/UpdNewYear.mp4"
     improve_video(input_video, output_video, *args_realsr.split(), func_upscale=use_realsr)
