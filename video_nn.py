@@ -36,6 +36,7 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
     if upd_videofile.split('/')[-1].count('.') == 0:  # check path that it's directory
         if not os.path.exists(upd_videofile):
             os.mkdir(upd_videofile)
+            subprocess.run(f'chown -R 1000:1000 {upd_videofile}'.split(), capture_output=True)
         directory = upd_videofile
         upd_videofile += 'untitled.avi'  # it's path for a future file
     else:
@@ -61,38 +62,39 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
     for path in [fragments_path, upd_fragments_path]:
         if not os.path.exists(path):
             os.mkdir(path)
-
-    return_code_frag = video_to_fragments(videofile, fragments_path)
-    if return_code_frag != 0:
-        print('Error on function video to fragments')
-        return -1
-
-    # copy info and audio of video to path with updated fragments
-    subprocess.run(['cp', fragments_path + 'info.txt', fragments_path + 'audio.mp3', upd_fragments_path], capture_output=True)
-
-    return_code_upscale = func_upscale(fragments_path, upd_fragments_path, *args_realsr)
-    if return_code_upscale != 0:
-        print('Error on upscaling frames')
-        return -1
-
-    return_code_glue = glue_frames(upd_fragments_path, upd_videofile_WOA)
-    if return_code_glue != 0:
-        print('Error on glue frames')
-        return -1
-
-    if not os.path.exists(fragments_path + 'audio.mp3'):
-        print('Audio not found')
-        os.rename(upd_videofile_WOA, upd_videofile)
-    else:
-        return_code_audio = add_audio(upd_videofile_WOA, fragments_path + 'audio.mp3', upd_videofile)
-        if return_code_audio != 0:
-            print('Error on adding audio')
+    try:
+        return_code_frag = video_to_fragments(videofile, fragments_path)
+        if return_code_frag != 0:
+            print('Error on function video to fragments')
             return -1
 
-    # chown for convenient work with Docker
-    if os.environ.get('IS_DOCKER'):
-        for path in [fragments_path, upd_fragments_path, upd_videofile_WOA, upd_videofile]:
-            subprocess.run(f'chown -R 1000:1000 {path}'.split(), capture_output=True)
+        # copy info and audio of video to path with updated fragments
+        subprocess.run(['cp', fragments_path + 'info.txt', fragments_path + 'audio.mp3', upd_fragments_path],
+                       capture_output=True)
+
+        return_code_upscale = func_upscale(fragments_path, upd_fragments_path, *args_realsr)
+        if return_code_upscale != 0:
+            print('Error on upscaling frames')
+            return -1
+
+        return_code_glue = glue_frames(upd_fragments_path, upd_videofile_WOA)
+        if return_code_glue != 0:
+            print('Error on glue frames')
+            return -1
+
+        if not os.path.exists(fragments_path + 'audio.mp3'):
+            print('Audio not found')
+            os.rename(upd_videofile_WOA, upd_videofile)
+        else:
+            return_code_audio = add_audio(upd_videofile_WOA, fragments_path + 'audio.mp3', upd_videofile)
+            if return_code_audio != 0:
+                print('Error on adding audio')
+                return -1
+    finally:
+        # chown for convenient work with Docker
+        if os.environ.get('IS_DOCKER'):
+            for path in [fragments_path, upd_fragments_path, upd_videofile_WOA, upd_videofile]:
+                subprocess.run(f'chown -R 1000:1000 {path}'.split(), capture_output=True)
     return 0
 
 
