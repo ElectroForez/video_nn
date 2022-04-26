@@ -34,6 +34,8 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
         return -1
     filename = videofile.split('/')[-1]  # take filename
     if upd_videofile.split('/')[-1].count('.') == 0:  # check path that it's directory
+        if not upd_videofile.endswith('/'):
+            upd_videofile += '/'
         if not os.path.exists(upd_videofile):
             os.mkdir(upd_videofile)
             subprocess.run(f'chown -R 1000:1000 {upd_videofile}'.split(), capture_output=True)
@@ -101,9 +103,9 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
 @print_timecost
 def use_realsr(input_path, output_path, *args_realsr, realsr_path='./realsr-ncnn-vulkan/realsr-ncnn-vulkan'):
     """up-scaling frames"""
-    # finish = subprocess.run([realsr_path, '-i', input_path, '-o', output_path, *args_realsr])
-    finish = subprocess.run(['cp', input_path, output_path])
-    time.sleep(3)
+    finish = subprocess.run([realsr_path, '-i', input_path, '-o', output_path, *args_realsr])
+    # finish = subprocess.run(['cp', input_path, output_path])
+    # time.sleep(3)
     return finish.returncode
 
 
@@ -228,5 +230,5 @@ if __name__ == '__main__':
     input_video = video_dir + args.input
     output_video = video_dir + args.output
     args_realsr = args.realsr
-    args_realsr = ''
+
     improve_video(input_video, output_video, *args_realsr.split(), func_upscale=use_realsr)
