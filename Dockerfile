@@ -11,5 +11,5 @@ WORKDIR /usr/src/video_nn
 RUN apt install python3-pip ffmpeg libsm6 libxext6 -y
 RUN pip install -r requirments.txt
 ENV IS_DOCKER=1
-ENTRYPOINT bash
+ENTRYPOINT ["python3", "video_nn.py"]
 
