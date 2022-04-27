@@ -101,8 +101,11 @@ def improve_video(videofile, upd_videofile='untitled.avi', *args_realsr, func_up
 
 
 @print_timecost
-def use_realsr(input_path, output_path, *args_realsr, realsr_path='./realsr-ncnn-vulkan/realsr-ncnn-vulkan'):
+def use_realsr(input_path, output_path, *args_realsr):
     """up-scaling frames"""
+    realsr_path = os.environ.get('REALSR_PATH')
+    if realsr_path is None:
+        realsr_path = './realsr-ncnn-vulkan/realsr-ncnn-vulkan'
     finish = subprocess.run([realsr_path, '-i', input_path, '-o', output_path, *args_realsr])
     # finish = subprocess.run(['cp', input_path, output_path])
     # time.sleep(3)
@@ -149,7 +152,7 @@ def video_to_fragments(video_path, output_path=None):
         ret, frame = videoCapture.read()
         if ret:
             count_frames += 1
-            cv2.imwrite("%s/%d.png" % (output_path, i), frame)
+            cv2.imwrite("%s/%d.jpg" % (output_path, i), frame)
     if count_frames != frames:
         frames = count_frames
 
